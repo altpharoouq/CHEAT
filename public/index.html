@@ -1,0 +1,1243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jira Subtask Runner</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --text: #1a1d21; --muted: #6b7280;
+    --border: #e5e7eb; --accent: #2563eb; --accent-dark: #1d4ed8;
+    --green: #16a34a; --red: #dc2626; --amber: #d97706; --gray: #9ca3af;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font: 14px/1.5 "Courier New", Courier, monospace; background: var(--bg); color: var(--text); }
+  input, select, button { font-family: inherit; }
+  .wrap { max-width: 1056px; margin: 0 auto; padding: 24px 20px 64px; }
+  nav { display: flex; gap: 18px; align-items: baseline; margin-bottom: 24px; flex-wrap: wrap; }
+  nav .brand { font-size: 19px; font-weight: 700; margin-right: auto; }
+  nav a { color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14px; padding: 4px 2px; }
+  nav a:hover { text-decoration: none; color: var(--text); }
+  nav a.active { color: var(--accent); }
+  #nav-user { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+  #nav-user button { padding: 4px 10px; font-size: 12px; }
+  .login-wrap { max-width: 420px; margin: 8vh auto 0; }
+  .login-wrap h1 { font-size: 20px; margin-bottom: 6px; }
+  h2 { font-size: 17px; margin: 24px 0 12px; }
+  .sub { color: var(--muted); margin-bottom: 20px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  input, select { padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: #fff; }
+  /* Custom select: same height as inputs, our own chevron that follows the text colour */
+  select {
+    -webkit-appearance: none; appearance: none; line-height: 1.15; padding-right: 34px; cursor: pointer;
+    text-overflow: ellipsis; white-space: nowrap; overflow: hidden; color: var(--text); background-color: #fff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center; background-size: 12px;
+  }
+  select.painted { border-color: transparent; }
+  input { width: 100%; margin-bottom: 14px; }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 9px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  button:hover { background: var(--accent-dark); }
+  button:disabled { background: var(--gray); cursor: default; }
+  button.secondary { background: #fff; color: var(--text); border: 1px solid var(--border); }
+  button.secondary:hover { background: var(--bg); }
+  button.danger { background: #fff; color: var(--red); border: 1px solid #fecaca; }
+  button.danger:hover { background: #fef2f2; }
+  button.small { padding: 4px 10px; font-size: 12px; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .errors { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; color: var(--red); font-size: 13px; max-height: 260px; overflow-y: auto; }
+  .errors ul { padding-left: 18px; margin: 0; }
+  .notice { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; color: var(--green); font-size: 13px; }
+  .warn { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; color: var(--amber); font-size: 13px; }
+  .warn ul { padding-left: 18px; margin: 0; }
+  .changes { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .totals { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 14px; font-size: 13px; }
+  .run { display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; }
+  .run:hover { border-color: var(--accent); }
+  .run .meta { color: var(--muted); font-size: 13px; }
+  .pill { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; text-transform: uppercase; letter-spacing: .03em; display: inline-block; }
+  .pill.RUNNING, .pill.running { background: #eff6ff; color: var(--accent); }
+  .pill.COMPLETED, .pill.done { background: #f0fdf4; color: var(--green); }
+  .pill.FAILED, .pill.TERMINATED, .pill.failed { background: #fef2f2; color: var(--red); }
+  .pill.skipped { background: #fffbeb; color: var(--amber); }
+  .pill.updated { background: #f5f3ff; color: #7c3aed; }
+  .pill.pending, .pill.UNKNOWN { background: #f3f4f6; color: var(--muted); }
+  .stage { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px; text-transform: uppercase; letter-spacing: .03em; display: inline-block; margin: 1px 2px 1px 0; border: 1px solid transparent; }
+  .stage.pending { background: #f3f4f6; color: var(--muted); }
+  .stage.running { background: #eff6ff; color: var(--accent); }
+  .stage.done { background: #f0fdf4; color: var(--green); }
+  .stage.failed { background: var(--red); color: #fff; }
+  .stage.skipped { background: #fffbeb; color: var(--amber); }
+  .tag { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; display: inline-block; }
+  .table-card { padding: 0; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  th { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  td.err { color: var(--red); font-size: 13px; }
+  td.note { color: var(--muted); font-size: 13px; }
+  td input, td select { margin: 0; padding: 5px 8px; font-size: 13px; width: 100%; }
+  td .btn-row { justify-content: flex-end; flex-wrap: nowrap; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .back { display: inline-block; margin-bottom: 16px; cursor: pointer; }
+  .empty { color: var(--muted); text-align: center; padding: 24px; }
+  .row-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; gap: 12px; flex-wrap: wrap; }
+  .mono { font-size: 12px; color: var(--muted); word-break: break-all; }
+  .section { margin-bottom: 28px; }
+  .section-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; gap: 8px; flex-wrap: wrap; }
+  .section-head h2 { margin: 0; }
+  .section-head .count { color: var(--muted); font-size: 13px; font-weight: 400; margin-left: 8px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  .section .table-card { margin-bottom: 0; }
+  .section tbody tr:hover td { background: var(--bg); }
+  /* Cap lookup tables at ~7 rows, then scroll, with the header pinned. Scrollbar hidden. */
+  .scroll-body { max-height: 322px; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; }
+  .scroll-body::-webkit-scrollbar { display: none; }
+  .scroll-body thead th { position: sticky; top: 0; background: var(--card); z-index: 1; }
+  .guide { font-size: 13px; }
+  .guide summary { cursor: pointer; font-weight: 700; color: var(--accent); list-style: none; }
+  .guide summary::-webkit-details-marker { display: none; }
+  .guide summary::before { content: '▸ '; }
+  .guide[open] summary::before { content: '▾ '; }
+  .guide .body { margin-top: 12px; }
+  .guide table { font-size: 12px; }
+  .guide code { background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+  .valid-values .grp { margin-top: 12px; }
+  .valid-values .grp .lbl { display: block; font-weight: 700; margin-bottom: 6px; }
+  .valid-values .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .search { padding: 5px 10px; font-size: 12px; width: 160px; margin: 0; }
+  textarea { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font: inherit; font-size: 14px; margin-bottom: 14px; min-height: 130px; resize: vertical; }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  /* Breakdown tasks: one horizontal card per task */
+  .task-row { display: grid; grid-template-columns: minmax(0, 2.6fr) minmax(0, 1.5fr) minmax(0, 1.1fr) 48px 172px 96px; gap: 14px; align-items: center; padding: 12px 16px; margin-bottom: 8px; }
+  .task-row.invalid { border-color: #fecaca; }
+  .task-row .t-sum { font-weight: 700; word-break: break-word; }
+  .task-row .t-desc { color: var(--muted); font-size: 12px; margin-top: 2px; white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .task-row .t-sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .task-row .t-tags { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+  .task-row .t-tags .tag { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .task-row .t-hrs { font-weight: 700; text-align: right; }
+  .task-row .t-dates { font-size: 12px; color: var(--muted); line-height: 1.6; white-space: nowrap; }
+  .task-row .t-dates b { color: var(--text); font-weight: 600; }
+  .task-row .t-issues { grid-column: 1 / -1; color: var(--red); font-size: 12px; margin-top: -4px; }
+  .task-row .btn-row { flex-wrap: nowrap; justify-content: flex-end; }
+  label .count { color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 6px; }
+  .create-hint { color: var(--muted); font-size: 12px; text-align: right; margin: -6px 0 12px; }
+  .create-hint:empty { display: none; }
+
+  /* Modal */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(17, 24, 39, .45); display: flex; align-items: flex-start; justify-content: center; padding: 6vh 16px 16px; z-index: 50; overflow-y: auto; }
+  .modal { background: var(--card); border-radius: 12px; width: 100%; max-width: 620px; padding: 22px; box-shadow: 0 20px 50px rgba(0, 0, 0, .25); }
+  .modal h3 { font-size: 16px; margin-bottom: 16px; }
+  .modal .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  .modal .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 14px; }
+  .modal select { width: 100%; margin-bottom: 14px; }
+  .modal .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+  .modal .choice { display: flex; gap: 18px; margin-bottom: 14px; font-size: 13px; flex-wrap: wrap; }
+  .modal .choice label { display: flex; align-items: center; gap: 6px; font-weight: 400; margin: 0; cursor: pointer; }
+  .modal .choice input { width: auto; margin: 0; }
+  .modal code { background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+  .dropzone { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 28px 16px; border: 2px dashed var(--border); border-radius: 10px; background: var(--bg); cursor: pointer; transition: border-color .15s, background .15s; margin-bottom: 10px; font-weight: 400; }
+  .dropzone:hover, .dropzone:focus-visible { border-color: var(--accent); outline: none; }
+  .dropzone.over { border-color: var(--accent); background: #eff6ff; }
+  .dropzone svg { color: var(--accent); margin-bottom: 4px; }
+  .dropzone .dz-title { font-weight: 700; font-size: 14px; }
+  .dropzone .dz-sub { color: var(--muted); font-size: 12px; }
+  .dropzone .dz-sub u { color: var(--accent); text-decoration: none; font-weight: 600; }
+  .file-chip { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; }
+  .file-chip .fc-icon { flex: none; width: 38px; height: 38px; border-radius: 8px; background: #f0fdf4; color: var(--green); display: grid; place-items: center; font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+  .file-chip .fc-body { flex: 1; min-width: 0; }
+  .file-chip .fc-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-chip .fc-meta { color: var(--muted); font-size: 12px; }
+  .file-chip button { flex: none; }
+  .csv-help { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+  .csv-help summary { cursor: pointer; color: var(--accent); font-weight: 600; list-style: none; display: inline; }
+  .csv-help summary::-webkit-details-marker { display: none; }
+  .csv-help .body { margin-top: 8px; line-height: 1.7; }
+  .mode-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .mode-opts label { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; margin: 0; font-weight: 600; }
+  .mode-opts label:has(input:checked) { border-color: var(--accent); background: #eff6ff; }
+  .mode-opts input { width: auto; margin: 3px 0 0; accent-color: var(--accent); }
+  .mode-opts .m-sub { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }
+  .dropzone[hidden], .file-chip[hidden] { display: none; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .plan-head { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 4px 0 6px; }
+  .plan-head .count { font-weight: 400; margin-left: 4px; }
+  .plan-list { list-style: none; padding: 0; margin: 0 0 14px; border: 1px solid var(--border); border-radius: 8px; max-height: 190px; overflow-y: auto; font-size: 13px; }
+  .plan-list li { padding: 7px 12px; border-bottom: 1px solid var(--border); }
+  .plan-list li:last-child { border-bottom: 0; }
+  .plan-list a { font-weight: 700; margin-right: 6px; }
+  body.modal-open { overflow: hidden; }
+  .section-head .btn-row { align-items: center; }
+  .step { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 14px; }
+  .summary-line { margin-bottom: 14px; }
+
+  /* Run detail: table on desktop, card list on mobile */
+  .rows-mobile { display: none; }
+  .task-card .head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
+  .task-card .stages { margin: 6px 0; }
+  .task-card .err-text { color: var(--red); font-size: 13px; margin-top: 6px; word-break: break-word; }
+  .task-card .meta { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  @media (max-width: 760px) {
+    .wrap { padding: 16px 12px 48px; }
+    nav .brand { font-size: 17px; }
+    .grid2 { grid-template-columns: 1fr; }
+    .rows-desktop { display: none; }
+    .rows-mobile { display: block; }
+    th, td { padding: 6px 8px; font-size: 13px; }
+    .card { padding: 14px; }
+    button { padding: 9px 13px; }
+    .task-row { grid-template-columns: 1fr auto; gap: 8px 12px; }
+    .task-row .t-main, .task-row .t-issues { grid-column: 1 / -1; }
+    .task-row .t-tags { flex-direction: row; flex-wrap: wrap; }
+    .task-row .t-hrs { text-align: left; }
+    .modal .grid, .modal .grid3, .mode-opts { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav id="nav" style="display:none">
+    <span class="brand">Jira Subtask Runner</span>
+    <a href="#" data-view="home">Workflows</a>
+    <a href="#breakdowns" data-view="breakdowns">Breakdowns</a>
+    <a href="#settings" data-view="settings">Settings</a>
+    <span id="nav-user"></span>
+  </nav>
+  <div id="app"></div>
+</div>
+<script>
+const app = document.getElementById('app')
+let JIRA_BASE = 'https://autochek.atlassian.net/browse/'
+let pollTimer = null
+let CURRENT_USER = null
+let runsFilterMine = false
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+const dash = (v) => (v === undefined || v === null || String(v).trim() === '') ? '-' : esc(v)
+const pill = (status) => `<span class="pill ${esc(status)}">${esc(status)}</span>`
+const fmtDate = (iso) => new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+const errorList = (errors) => `<div class="errors"><ul>${errors.map((e) => `<li>${esc(e)}</li>`).join('')}</ul></div>`
+const extLink = (href, text) => `<a href="${esc(href)}" target="_blank" rel="noopener">${esc(text)}</a>`
+
+// Deterministic color per label so developers/task types are recognisable at a glance
+const hueFor = (s) => { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 360; return h }
+const tag = (text) => {
+  if (!text) return '-'
+  const h = hueFor(text)
+  return `<span class="tag" style="background:hsl(${h},70%,92%);color:hsl(${h},65%,28%)">${esc(text)}</span>`
+}
+
+const STAGE_LABELS = { create: 'create', plan: 'plan', transition: 'transition' }
+const stagePills = (stages) => {
+  if (!stages) return ''
+  return Object.keys(STAGE_LABELS)
+    .map((s) => `<span class="stage ${esc(stages[s] ?? 'pending')}" title="${s}: ${esc(stages[s] ?? 'pending')}">${STAGE_LABELS[s]}</span>`)
+    .join('')
+}
+
+const api = async (method, url, body) => {
+  const res = await fetch(url, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined
+  })
+  const data = await res.json().catch(() => ({}))
+  // Session expired or missing (except during login itself) — drop back to the login screen
+  if (res.status === 401 && url !== '/api/login') { renderLogin(); throw ['Session expired — please sign in again'] }
+  if (!res.ok) throw (data.errors ?? ['Unknown error'])
+  return data
+}
+
+function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null } }
+
+const workerBanner = async () => {
+  try {
+    const h = await api('GET', '/api/health')
+    return h.workerOnline ? '' : '<div class="warn">The worker appears to be offline — runs will not progress until it\'s started (npm run start:worker).</div>'
+  } catch { return '' }
+}
+
+// Per-developer workload from the preview rows: totals, plus days where someone exceeds 8h
+const workloadSummary = (rows) => {
+  const totals = {}
+  const perDay = {}
+
+  for (const r of rows) {
+    const hours = +r.estimated_hours
+    if (!r.developer || !hours) continue
+    totals[r.developer] = (totals[r.developer] ?? 0) + hours
+
+    const start = new Date(r.start_date), end = new Date(r.end_date)
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) continue
+    const days = Math.round((end - start) / 86400000) + 1
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const key = `${r.developer}|${d.toISOString().slice(0, 10)}`
+      perDay[key] = (perDay[key] ?? 0) + hours / days
+    }
+  }
+
+  const overloads = Object.entries(perDay)
+    .filter(([, h]) => h > 8)
+    .map(([key, h]) => { const [dev, date] = key.split('|'); return `${dev} has ${Math.round(h * 10) / 10}h scheduled on ${date}` })
+
+  return { totals, overloads }
+}
+
+// ---------- Home: create (with preview) + runs list ----------
+
+async function renderHome() {
+  stopPolling()
+  const runs = await api('GET', '/api/runs')
+
+  app.innerHTML = `
+    <div class="sub">Every run that pushed a breakdown's tasks to Jira. To start a new one, open a breakdown and use <strong>Create subtasks in Jira</strong>.</div>
+    <div id="health"></div>
+
+    <div class="row-head">
+      <h2 style="margin:0">Workflows</h2>
+      <a href="#breakdowns" style="margin-right:auto;font-size:13px">Go to breakdowns &rarr;</a>
+      ${runs.some((r) => r.actorEmail === CURRENT_USER?.email) ? `
+        <div class="btn-row">
+          <button class="small ${runsFilterMine ? 'secondary' : ''}" id="filter-all">All</button>
+          <button class="small ${runsFilterMine ? '' : 'secondary'}" id="filter-mine">Mine</button>
+        </div>` : ''}
+    </div>
+    <div id="runs"></div>
+  `
+
+  const shown = runsFilterMine ? runs.filter((r) => r.actorEmail === CURRENT_USER?.email) : runs
+  const list = document.getElementById('runs')
+  if (shown.length === 0) {
+    list.innerHTML = `<div class="card empty">${runsFilterMine ? 'None of your runs yet' : 'No runs yet'}</div>`
+  }
+  for (const r of shown) {
+    const el = document.createElement('div')
+    el.className = 'card run'
+    el.innerHTML = `
+      <div>
+        <div><strong>${esc(r.parentKey)}</strong> — ${r.rowCount} subtasks</div>
+        <div class="meta">${fmtDate(r.startedAt)} · ${esc(r.tabTitle || 'breakdown')}${r.actorName ? ` · by ${esc(r.actorName)}` : ''}</div>
+      </div>
+      ${pill(r.status)}
+    `
+    el.onclick = () => { location.hash = `#run/${r.workflowId}` }
+    list.appendChild(el)
+  }
+
+  const fa = document.getElementById('filter-all')
+  const fm = document.getElementById('filter-mine')
+  if (fa) fa.onclick = () => { runsFilterMine = false; renderHome() }
+  if (fm) fm.onclick = () => { runsFilterMine = true; renderHome() }
+
+  workerBanner().then((b) => { const el = document.getElementById('health'); if (el) el.innerHTML = b })
+}
+
+// ---------- Run detail ----------
+
+async function renderDetail(workflowId) {
+  const load = async () => {
+    let run
+    try {
+      run = await api('GET', `/api/runs/${encodeURIComponent(workflowId)}`)
+    } catch {
+      app.innerHTML = '<div class="card empty">Run not found</div>'
+      stopPolling()
+      return
+    }
+
+    const counts = { done: 0, updated: 0, failed: 0, skipped: 0 }
+    for (const p of run.progress) if (counts[p.status] !== undefined) counts[p.status]++
+
+    const rowsHtml = run.progress.map((p) => `
+      <tr>
+        <td>${esc(p.summary)}</td>
+        <td>${tag(p.developer)}</td>
+        <td>${pill(p.status)}<div>${stagePills(p.stages)}</div></td>
+        <td>${p.issueKey ? extLink(JIRA_BASE + p.issueKey, p.issueKey) : '-'}</td>
+        <td class="${p.status === 'skipped' ? 'note' : 'err'}">${dash(p.error)}</td>
+      </tr>`).join('')
+
+    const cardsHtml = run.progress.map((p) => `
+      <div class="card task-card">
+        <div class="head">
+          <div><strong>${esc(p.summary)}</strong></div>
+          ${pill(p.status)}
+        </div>
+        <div>${tag(p.developer)}</div>
+        <div class="stages">${stagePills(p.stages)}</div>
+        ${p.issueKey ? `<div class="meta">${extLink(JIRA_BASE + p.issueKey, p.issueKey)}</div>` : ''}
+        ${p.error ? `<div class="${p.status === 'skipped' ? 'meta' : 'err-text'}">${esc(p.error)}</div>` : ''}
+      </div>`).join('')
+
+    app.innerHTML = `
+      <a class="back" onclick="location.hash=''">&larr; All workflows</a>
+      <div class="row-head">
+        <h2 style="margin:0">${extLink(JIRA_BASE + run.parentKey, run.parentKey)} — ${run.rowCount} subtasks</h2>
+        <div class="btn-row">
+          ${pill(run.status)}
+          ${run.breakdownLink ? `<a class="small" href="${esc(run.breakdownLink)}">Open breakdown</a>` : ''}
+          <button id="delete-run" class="danger small">Delete</button>
+        </div>
+      </div>
+      <div class="sub">
+        Started ${fmtDate(run.startedAt)}${run.actorName ? ` by ${esc(run.actorName)}` : ''} ·
+        ${run.sheetUrl ? extLink(run.sheetUrl, run.tabTitle || 'open sheet') : run.breakdownLink ? `<a href="${esc(run.breakdownLink)}">${esc(run.tabTitle || 'breakdown')}</a>` : esc(run.tabTitle || 'breakdown')} ·
+        ${counts.done} done${counts.updated ? `, ${counts.updated} updated` : ''}${counts.failed ? `, ${counts.failed} failed` : ''}${counts.skipped ? `, ${counts.skipped} already in Jira` : ''}
+      </div>
+      <div id="health"></div>
+      <div id="detail-msg"></div>
+      ${run.failure ? `<div class="errors">${esc(run.failure)}</div>` : ''}
+      <div class="rows-desktop card table-card">
+        <table>
+          <thead><tr><th style="width:36%">Summary</th><th>Assignee</th><th>Status / stages</th><th>Issue</th><th>Error</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+      <div class="rows-mobile">${cardsHtml}</div>
+      ${run.orphans?.length ? `
+        <h2>Other subtasks under ${esc(run.parentKey)} (${run.orphans.length})</h2>
+        <div class="warn">These exist in Jira under the parent but aren't in this breakdown:
+          <ul>${run.orphans.map((o) => `<li>${extLink(JIRA_BASE + o.issueKey, o.issueKey)} — ${esc(o.summary)}</li>`).join('')}</ul>
+        </div>` : ''}
+    `
+
+    if (run.status === 'RUNNING') {
+      workerBanner().then((b) => { const el = document.getElementById('health'); if (el) el.innerHTML = b })
+    }
+
+    document.getElementById('delete-run').onclick = async () => {
+      if (!confirm(`Delete this run record${run.status === 'RUNNING' ? ' and stop the running workflow' : ''}? Jira issues are not touched.`)) return
+      try {
+        await api('DELETE', `/api/runs/${encodeURIComponent(run.workflowId)}`)
+        location.hash = ''
+      } catch (errors) {
+        document.getElementById('detail-msg').innerHTML = errorList(Array.isArray(errors) ? errors : [String(errors)])
+      }
+    }
+
+    if (run.status !== 'RUNNING') stopPolling()
+  }
+
+  stopPolling()
+  await load()
+  pollTimer = setInterval(load, 2000)
+}
+
+// ---------- Settings: connection + lookup table CRUD ----------
+
+const lookupSections = [
+  { key: 'developers', title: 'Developers', idLabel: 'Jira account id', valueField: 'name', valueLabel: 'Name', endpoint: '/api/developers' },
+  { key: 'developerTaskTypes', title: 'Developer task types', idLabel: 'Jira option id', valueField: 'value', valueLabel: 'Label', endpoint: '/api/task-types', category: 'developer' },
+  { key: 'managementTaskTypes', title: 'Management task types', idLabel: 'Jira option id', valueField: 'value', valueLabel: 'Label', endpoint: '/api/task-types', category: 'management' }
+]
+
+async function renderSettings() {
+  stopPolling()
+  const [lookups, settings] = await Promise.all([api('GET', '/api/lookups'), api('GET', '/api/settings')])
+
+  const sectionHtml = (s) => `
+    <div class="section" id="section-${s.key}">
+      <div class="section-head">
+        <h2>${s.title}<span class="count">${lookups[s.key].length}</span></h2>
+        <div class="btn-row">
+          <input class="search" type="search" autocomplete="off" placeholder="Search..." />
+          <button class="secondary small sync">Sync</button>
+        </div>
+      </div>
+      <div class="card table-card scroll-body">
+        <table id="table-${s.key}">
+          <thead><tr><th style="width:42%">${s.valueLabel}</th><th>${s.idLabel}</th><th style="width:90px"></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  `
+
+  app.innerHTML = `
+    <div class="sub">Everything here is stored in Postgres and survives restarts.</div>
+    <div id="settings-msg"></div>
+
+    <div class="section">
+      <div class="section-head"><h2>Jira connection</h2></div>
+      <div class="card">
+        <div id="conn-msg"></div>
+        <label for="jiraBaseUrl">Jira base URL</label>
+        <input id="jiraBaseUrl" autocomplete="off" value="${esc(settings.jiraBaseUrl)}" placeholder="https://yourcompany.atlassian.net" />
+        <div class="sub" style="margin:-6px 0 14px;font-size:12px">Everyone acts in Jira as themselves, with the email and API token they signed in with.</div>
+        <button id="save-conn">Save</button>
+      </div>
+    </div>
+
+    <div class="sub" style="margin-top:8px">Lookup tables sync from Jira. Use each table's <strong>Sync</strong> button to pull the latest list, or search to find an entry.</div>
+
+    ${sectionHtml(lookupSections[0])}
+    <div class="grid2">
+      ${sectionHtml(lookupSections[1])}
+      ${sectionHtml(lookupSections[2])}
+    </div>
+  `
+
+  document.getElementById('save-conn').onclick = async () => {
+    const btn = document.getElementById('save-conn')
+    const connMsg = document.getElementById('conn-msg')
+    btn.disabled = true; btn.textContent = 'Saving...'
+    connMsg.innerHTML = ''
+
+    try {
+      await api('POST', '/api/settings', {
+        jiraBaseUrl: document.getElementById('jiraBaseUrl').value.trim()
+      })
+      await loadJiraBase()
+      renderSettings()
+    } catch (errors) {
+      connMsg.innerHTML = errorList(Array.isArray(errors) ? errors : [String(errors)])
+      btn.disabled = false; btn.textContent = 'Save'
+    }
+  }
+
+  const msg = document.getElementById('settings-msg')
+  const showErrors = (errors) => { msg.innerHTML = errorList(Array.isArray(errors) ? errors : [String(errors)]); window.scrollTo(0, 0) }
+
+  for (const section of lookupSections) {
+    const tbody = document.querySelector(`#table-${section.key} tbody`)
+    const items = lookups[section.key]
+
+    const save = async (payload) => {
+      try {
+        await api('POST', section.endpoint, section.category ? { ...payload, category: section.category } : payload)
+        renderSettings()
+      } catch (errors) { showErrors(errors) }
+    }
+
+    const readRow = (tr) => ({
+      [section.valueField]: tr.querySelector('.f-value').value.trim(),
+      id: tr.querySelector('.f-id').value.trim()
+    })
+
+    const displayRow = (item) => {
+      const tr = document.createElement('tr')
+      tr.innerHTML = `
+        <td>${tag(item[section.valueField])}</td>
+        <td class="mono">${esc(item.id)}</td>
+        <td><div class="btn-row">
+          <button class="secondary small edit">Edit</button>
+          <button class="danger small del">Delete</button>
+        </div></td>
+      `
+      tr.querySelector('.edit').onclick = () => tr.replaceWith(editRow(item))
+      tr.querySelector('.del').onclick = async () => {
+        if (!confirm(`Delete "${item[section.valueField]}"?`)) return
+        try {
+          await api('DELETE', `${section.endpoint}/${encodeURIComponent(item.id)}`)
+          renderSettings()
+        } catch (errors) { showErrors(errors) }
+      }
+      return tr
+    }
+
+    const editRow = (item) => {
+      const tr = document.createElement('tr')
+      tr.innerHTML = `
+        <td><input class="f-value" autocomplete="off" value="${esc(item?.[section.valueField] ?? '')}" placeholder="${section.valueLabel}"></td>
+        <td><input class="f-id" autocomplete="off" value="${esc(item?.id ?? '')}" placeholder="${section.idLabel}"></td>
+        <td><div class="btn-row">
+          <button class="small ok">Save</button>
+          <button class="secondary small cancel">Cancel</button>
+        </div></td>
+      `
+      tr.querySelector('.ok').onclick = () => save({ ...readRow(tr), ...(item ? { previousId: item.id } : {}) })
+      tr.querySelector('.cancel').onclick = () => item ? tr.replaceWith(displayRow(item)) : tr.remove()
+      return tr
+    }
+
+    for (const item of items) tbody.appendChild(displayRow(item))
+
+    // Search: filter the table's rows live by name/id text
+    const searchInput = document.querySelector(`#section-${section.key} .search`)
+    searchInput.oninput = () => {
+      const q = searchInput.value.trim().toLowerCase()
+      for (const tr of tbody.querySelectorAll('tr')) {
+        tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none'
+      }
+    }
+
+    // Sync just this table from Jira
+    const syncBtn = document.querySelector(`#section-${section.key} .sync`)
+    syncBtn.onclick = async () => {
+      syncBtn.disabled = true; syncBtn.textContent = 'Syncing...'
+      msg.innerHTML = ''
+      try {
+        const r = await api('POST', '/api/lookups/sync', { target: section.key })
+        const relevant = (r.warnings || []).filter((w) => w.toLowerCase().includes(section.category ?? 'developer'))
+        msg.innerHTML = `
+          <div class="notice">Synced ${r[section.key]} ${section.title.toLowerCase()} from Jira.</div>
+          ${relevant.length ? `<div class="warn"><ul>${relevant.map((w) => `<li>${esc(w)}</li>`).join('')}</ul></div>` : ''}
+        `
+        window.scrollTo(0, 0)
+        setTimeout(renderSettings, 1200)
+      } catch (errors) {
+        showErrors(errors)
+        syncBtn.disabled = false; syncBtn.textContent = 'Sync'
+      }
+    }
+  }
+}
+
+// ---------- Breakdowns: hand-built or CSV-imported subtask sets ----------
+
+const TASK_TYPES = ['Developer Task', 'Management Task']
+const DATE_FIELDS = [['start_date', 'Start'], ['end_date', 'End'], ['due_date', 'Due']]
+// Seeded into every new breakdown (dated today, 1h each)
+const DEFAULT_MANAGEMENT_TASKS = [
+  { summary: 'Kickoff meeting with the team (process & direction)', subType: 'Meeting & Communication', hours: '1' },
+  { summary: 'Scoping', subType: 'Scoping', hours: '1' },
+  { summary: 'Design', subType: 'Design', hours: '1' },
+  { summary: 'Planning', subType: 'Planning', hours: '1' }
+]
+
+const todayDDMMYYYY = () => {
+  const d = new Date()
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`
+}
+
+// Same deterministic colour scheme as the Settings pills, applied to a <select>
+const paintSelect = (el) => {
+  const v = el.value
+  // backgroundColor (not the background shorthand) so the chevron image survives
+  if (!v) { el.style.backgroundColor = ''; el.style.color = ''; el.style.fontWeight = ''; el.classList.remove('painted'); return }
+  const h = hueFor(v)
+  el.classList.add('painted')
+  el.style.backgroundColor = `hsl(${h},70%,92%)`
+  el.style.color = `hsl(${h},65%,28%)`
+  el.style.fontWeight = '700'
+}
+
+// Breakdowns store DD-MM-YYYY; <input type="date"> uses YYYY-MM-DD
+const toIsoDate = (ddmmyyyy) => {
+  const m = String(ddmmyyyy ?? '').trim().match(/^(\d{2})-(\d{2})-(\d{4})$/)
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : ''
+}
+const fromIsoDate = (iso) => {
+  const m = String(iso ?? '').match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : ''
+}
+
+// Generic modal: returns { el, close }. Closes on Esc, backdrop click, or [data-close]
+const openModal = (html, { onClose } = {}) => {
+  const backdrop = document.createElement('div')
+  backdrop.className = 'modal-backdrop'
+  backdrop.innerHTML = `<div class="modal" role="dialog" aria-modal="true">${html}</div>`
+  document.body.appendChild(backdrop)
+  document.body.classList.add('modal-open')
+
+  const onKey = (e) => { if (e.key === 'Escape') close() }
+  const close = () => {
+    document.removeEventListener('keydown', onKey)
+    document.body.classList.remove('modal-open')
+    backdrop.remove()
+    onClose?.()
+  }
+
+  document.addEventListener('keydown', onKey)
+  backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) close() })
+  backdrop.querySelectorAll('[data-close]').forEach((b) => { b.onclick = close })
+
+  const first = backdrop.querySelector('input:not([type=hidden]):not([type=radio]), select, textarea')
+  if (first) setTimeout(() => first.focus(), 0)
+  return { el: backdrop.querySelector('.modal'), close }
+}
+
+async function renderBreakdowns() {
+  stopPolling()
+  const list = await api('GET', '/api/breakdowns')
+
+  app.innerHTML = `
+    <div class="sub">Build a set of subtasks by hand or import them from a CSV, then push them to Jira once the parent issue and Confluence link are in place.</div>
+    <div class="row-head">
+      <h2 style="margin:0">Breakdowns</h2>
+      <button id="new-breakdown">+ New breakdown</button>
+    </div>
+    <div id="bd-list">${list.length === 0 ? '<div class="card empty">No breakdowns yet</div>' : ''}</div>
+  `
+
+  const container = document.getElementById('bd-list')
+  for (const b of list) {
+    const el = document.createElement('div')
+    el.className = 'card run'
+    el.innerHTML = `
+      <div>
+        <div><strong>${esc(b.title)}</strong>${b.parentKey ? ` — ${esc(b.parentKey)}` : ''}</div>
+        <div class="meta">${b.rowCount} task${b.rowCount === 1 ? '' : 's'} · updated ${fmtDate(b.updatedAt)}${b.authorName ? ` · by ${esc(b.authorName)}` : ''}</div>
+      </div>
+      ${b.parentKey && b.confluenceUrl ? '' : '<span class="pill pending">draft</span>'}
+    `
+    el.onclick = () => { location.hash = `#breakdown/${b.id}` }
+    container.appendChild(el)
+  }
+
+  document.getElementById('new-breakdown').onclick = () => { location.hash = '#breakdown/new' }
+}
+
+async function renderBreakdownEditor(id) {
+  stopPolling()
+  const isNew = id === 'new'
+  const [lookups, saved] = await Promise.all([
+    api('GET', '/api/lookups'),
+    isNew ? Promise.resolve(null) : api('GET', `/api/breakdowns/${encodeURIComponent(id)}`).catch(() => null)
+  ])
+
+  if (!isNew && !saved) {
+    app.innerHTML = '<div class="card empty">Breakdown not found</div>'
+    return
+  }
+
+  let breakdownId = saved?.id ?? ''
+  let draftRows = (saved?.rows ?? []).map((r) => ({ ...r }))
+
+  const subTypesFor = (taskType) =>
+    (taskType === 'Management Task' ? lookups.managementTaskTypes : lookups.developerTaskTypes).map((t) => t.value)
+  const developerNames = lookups.developers.map((d) => d.name)
+
+  // Every breakdown gets the standard management tasks, owned by Faruq and dated today.
+  // They're added when the breakdown is first saved, not shown on the blank form.
+  const withDefaultTasks = (rows) => {
+    const owner = developerNames.find((n) => /faruq/i.test(n)) ?? 'Faruq Alli-Balogun'
+    const have = new Set(rows.map((r) => String(r.summary ?? '').trim().toLowerCase()))
+    const today = todayDDMMYYYY()
+    const defaults = DEFAULT_MANAGEMENT_TASKS
+      .filter((t) => !have.has(t.summary.toLowerCase()))
+      .map((t) => ({
+        summary: t.summary, description: '', task_type: 'Management Task', sub_task_type: t.subType, developer: owner,
+        label: '', estimated_hours: t.hours, start_date: today, end_date: today, due_date: today, id: ''
+      }))
+    return [...defaults, ...rows]
+  }
+
+  // Keep an unknown current value selectable (e.g. from a CSV) instead of silently swapping it
+  const options = (values, selected) => {
+    const all = selected && !values.includes(selected) ? [selected, ...values] : values
+    return all.map((v) => `<option value="${esc(v)}"${v === selected ? ' selected' : ''}>${esc(v)}${values.includes(v) ? '' : ' (not in Settings)'}</option>`).join('')
+  }
+
+  // Mirrors the server's row validation so problems show up before "Create"
+  const rowIssues = (r) => {
+    const issues = []
+    if (!String(r.summary ?? '').trim()) issues.push('summary is empty')
+    if (!TASK_TYPES.includes(r.task_type)) issues.push(`unknown task type "${r.task_type ?? ''}"`)
+    else if (!subTypesFor(r.task_type).includes(r.sub_task_type)) issues.push(`unknown sub-type "${r.sub_task_type ?? ''}"`)
+    if (!developerNames.includes(r.developer)) issues.push(`unknown developer "${r.developer ?? ''}"`)
+    if (Number.isNaN(+r.estimated_hours)) issues.push(`hours "${r.estimated_hours}" is not a number`)
+    for (const [f, label] of DATE_FIELDS) {
+      if (r[f] && !toIsoDate(r[f])) issues.push(`${label.toLowerCase()} date "${r[f]}" is not DD-MM-YYYY`)
+    }
+    return issues
+  }
+
+  app.innerHTML = `
+    <a class="back" onclick="location.hash='#breakdowns'">&larr; All breakdowns</a>
+    <div class="card">
+      <div id="bd-msg"></div>
+      <label for="bd-title">Title</label>
+      <input id="bd-title" autocomplete="off" placeholder="Best Deals landing page" value="${esc(saved?.title ?? '')}" />
+      <div class="grid2" style="gap:0 14px">
+        <div>
+          <label for="bd-parent">Parent issue key <span class="count">needed to create subtasks</span></label>
+          <input id="bd-parent" autocomplete="off" placeholder="AET-123" value="${esc(saved?.parentKey ?? '')}" />
+        </div>
+        <div>
+          <label for="bd-confluence">Confluence link <span class="count">needed to create subtasks</span></label>
+          <input id="bd-confluence" autocomplete="off" placeholder="https://autochek.atlassian.net/wiki/spaces/.../pages/123" value="${esc(saved?.confluenceUrl ?? '')}" />
+        </div>
+      </div>
+      <label for="bd-desc">Notes <span class="count">optional</span></label>
+      <textarea id="bd-desc" style="min-height:80px" placeholder="Deadlines, constraints, context...">${esc(saved?.description ?? '')}</textarea>
+      <div class="btn-row">
+        <button id="bd-save">Save</button>
+        ${isNew ? '' : '<button id="bd-delete" class="danger">Delete</button>'}
+      </div>
+    </div>
+
+    <div class="row-head">
+      <h2 style="margin:0">Tasks <span class="count" id="bd-count"></span></h2>
+      <div class="btn-row">
+        <button id="bd-import" class="secondary small">Import CSV</button>
+        <button id="bd-add" class="secondary small">+ Add task</button>
+        <button id="bd-create" class="small">Create subtasks in Jira</button>
+      </div>
+    </div>
+    <div id="bd-create-hint" class="create-hint"></div>
+    <div id="bd-totals"></div>
+    <div id="bd-rows"></div>
+  `
+
+  const msg = document.getElementById('bd-msg')
+  const rowsArea = document.getElementById('bd-rows')
+  const showErrors = (errors) => {
+    msg.innerHTML = errorList(Array.isArray(errors) ? errors : [String(errors)])
+    window.scrollTo(0, 0)
+  }
+  const showNotice = (text) => { msg.innerHTML = `<div class="notice">${esc(text)}</div>` }
+
+  const currentForm = () => ({
+    id: breakdownId || undefined,
+    title: document.getElementById('bd-title').value.trim(),
+    parentKey: document.getElementById('bd-parent').value.trim(),
+    confluenceUrl: document.getElementById('bd-confluence').value.trim(),
+    description: document.getElementById('bd-desc').value,
+    rows: draftRows
+  })
+
+  // Parent key + Confluence link are optional for drafts but required to create the workflow
+  const missingForCreate = () => {
+    const f = currentForm()
+    const missing = []
+    if (!f.parentKey) missing.push('parent issue key')
+    if (!/^https?:\/\/\S+$/i.test(f.confluenceUrl)) missing.push('Confluence link')
+    if (draftRows.length === 0) missing.push('at least one task')
+    return missing
+  }
+
+  const refreshCreateState = () => {
+    const missing = missingForCreate()
+    const btn = document.getElementById('bd-create')
+    btn.disabled = missing.length > 0
+    document.getElementById('bd-create-hint').textContent = missing.length ? `To create subtasks, add: ${missing.join(', ')}` : ''
+  }
+  document.getElementById('bd-parent').addEventListener('input', refreshCreateState)
+  document.getElementById('bd-confluence').addEventListener('input', refreshCreateState)
+
+  const save = async () => {
+    const creating = !breakdownId
+    if (creating) draftRows = withDefaultTasks(draftRows)
+    const form = currentForm()
+    if (!form.title) form.title = form.parentKey || 'Untitled breakdown'
+    const { id: newId } = await api('POST', '/api/breakdowns', form)
+    breakdownId = newId
+    if (creating) renderRows()
+    // Swap the URL without re-rendering, so a new breakdown keeps its place
+    if (location.hash !== `#breakdown/${newId}`) history.replaceState(null, '', `#breakdown/${newId}`)
+    return newId
+  }
+
+  // Task changes persist immediately, so nothing from a modal is lost on navigation
+  const commitRows = async (notice) => {
+    renderRows()
+    try {
+      await save()
+      if (notice) showNotice(notice)
+    } catch (errors) { showErrors(errors) }
+  }
+
+  const renderRows = () => {
+    document.getElementById('bd-count').textContent = draftRows.length || ''
+    refreshCreateState()
+
+    const { totals } = workloadSummary(draftRows.map((r) => ({
+      ...r, start_date: toIsoDate(r.start_date), end_date: toIsoDate(r.end_date)
+    })))
+    document.getElementById('bd-totals').innerHTML = Object.keys(totals).length
+      ? `<div class="totals">${Object.entries(totals).map(([dev, h]) => `${tag(dev)} ${Math.round(h * 10) / 10}h`).join(' ')}</div>`
+      : ''
+
+    if (draftRows.length === 0) {
+      rowsArea.innerHTML = `<div class="card empty">No tasks yet — add one, or import a CSV in the template format.${breakdownId ? '' : '<br>Kickoff meeting with the team (process &amp; direction), Scoping, Design and Planning are added automatically when the breakdown is saved.'}</div>`
+      return
+    }
+
+    rowsArea.innerHTML = draftRows.map((r, i) => {
+      const issues = rowIssues(r)
+      return `
+        <div class="card task-row${issues.length ? ' invalid' : ''}">
+          <div class="t-main">
+            <div class="t-sum">${esc(r.summary) || '<span style="color:var(--muted)">(no summary)</span>'}</div>
+            ${r.description && r.description.trim() !== String(r.summary ?? '').trim() ? `<div class="t-desc">${esc(r.description)}</div>` : ''}
+            <div class="t-sub">${esc(r.task_type)}${r.label ? ` · ${esc(r.label)}` : ''}${r.id ? ` · ${extLink(JIRA_BASE + r.id, r.id)}` : ''}</div>
+          </div>
+          <div class="t-tags">${tag(r.sub_task_type)}</div>
+          <div class="t-tags">${tag(r.developer)}</div>
+          <div class="t-hrs">${String(r.estimated_hours ?? '').trim() === '' ? '-' : Number.isNaN(+r.estimated_hours) ? '?' : `${esc(r.estimated_hours)}h`}</div>
+          <div class="t-dates">
+            <div><b>${dash(r.start_date)}</b> &rarr; <b>${dash(r.end_date)}</b></div>
+            <div>due ${dash(r.due_date)}</div>
+          </div>
+          <div class="btn-row">
+            <button class="secondary small" data-edit="${i}">Edit</button>
+            <button class="danger small" data-del="${i}" title="Remove task">&times;</button>
+          </div>
+          ${issues.length ? `<div class="t-issues">${esc(issues.join(' · '))}</div>` : ''}
+        </div>`
+    }).join('')
+  }
+
+  rowsArea.addEventListener('click', (e) => {
+    const btn = e.target.closest('button')
+    if (!btn) return
+    if (btn.dataset.edit !== undefined) openTaskModal(+btn.dataset.edit)
+    if (btn.dataset.del !== undefined) {
+      const i = +btn.dataset.del
+      if (!confirm(`Remove "${draftRows[i].summary || 'this task'}"?`)) return
+      draftRows.splice(i, 1)
+      commitRows('Task removed.')
+    }
+  })
+
+  // Add (index undefined) or edit a task in a modal
+  const openTaskModal = (index) => {
+    const editing = index !== undefined
+    const r = editing ? draftRows[index] : {
+      summary: '', description: '', task_type: 'Developer Task',
+      sub_task_type: subTypesFor('Developer Task')[0] ?? '',
+      developer: '', label: draftRows[draftRows.length - 1]?.label ?? '',
+      estimated_hours: '', start_date: '', end_date: '', due_date: '', id: ''
+    }
+
+    const { el, close } = openModal(`
+      <h3>${editing ? 'Edit task' : 'Add task'}</h3>
+      <div class="m-msg"></div>
+      <form autocomplete="off">
+        <label>Summary</label>
+        <input name="summary" value="${esc(r.summary ?? '')}" placeholder="Add Best Deals badge to vehicle cards" />
+        <label>Description <span class="count">optional — defaults to the summary in Jira</span></label>
+        <textarea name="description" rows="4" style="min-height:96px" placeholder="What needs doing, acceptance criteria, links...">${esc(r.description ?? '')}</textarea>
+        <div class="grid">
+          <div><label>Task type</label><select name="task_type">${options(TASK_TYPES, r.task_type)}</select></div>
+          <div><label>Sub-type</label><select name="sub_task_type">${options(subTypesFor(r.task_type), r.sub_task_type)}</select></div>
+          <div><label>Assignee</label><select name="developer"><option value="">Choose…</option>${options(developerNames, r.developer)}</select></div>
+          <div><label>Label</label><input name="label" value="${esc(r.label ?? '')}" placeholder="Marketplace" /></div>
+          <div><label>Estimated hours</label><input name="estimated_hours" type="number" min="0" step="0.25" value="${esc(r.estimated_hours ?? '')}" placeholder="4" /></div>
+          <div><label>Jira key <span class="count">optional</span></label><input name="id" value="${esc(r.id ?? '')}" placeholder="AET-123" /></div>
+        </div>
+        <div class="grid3">
+          ${DATE_FIELDS.map(([f, label]) => `<div><label>${label}</label><input name="${f}" type="date" value="${toIsoDate(r[f])}" /></div>`).join('')}
+        </div>
+        <div class="actions">
+          <button type="button" class="secondary" data-close>Cancel</button>
+          <button type="submit">${editing ? 'Save changes' : 'Add task'}</button>
+        </div>
+      </form>
+    `)
+
+    const form = el.querySelector('form')
+    const field = (n) => form.elements[n]
+    for (const s of form.querySelectorAll('select')) { paintSelect(s); s.addEventListener('change', () => paintSelect(s)) }
+
+    // Switching task type changes which sub-types are valid
+    field('task_type').addEventListener('change', () => {
+      const valid = subTypesFor(field('task_type').value)
+      const current = field('sub_task_type').value
+      field('sub_task_type').innerHTML = options(valid, valid.includes(current) ? current : valid[0])
+      paintSelect(field('sub_task_type'))
+    })
+
+    form.onsubmit = (e) => {
+      e.preventDefault()
+      const next = {
+        ...r,
+        summary: field('summary').value.trim(),
+        description: field('description').value.trim(),
+        task_type: field('task_type').value,
+        sub_task_type: field('sub_task_type').value,
+        developer: field('developer').value,
+        label: field('label').value.trim(),
+        estimated_hours: field('estimated_hours').value.trim(),
+        id: field('id').value.trim().toUpperCase(),
+        ...Object.fromEntries(DATE_FIELDS.map(([f]) => [f, fromIsoDate(field(f).value)]))
+      }
+
+      const problems = []
+      if (!next.summary) problems.push('Add a summary')
+      if (!next.developer) problems.push('Choose an assignee')
+      if (next.start_date && next.end_date && toIsoDate(next.end_date) < toIsoDate(next.start_date)) problems.push('End date is before the start date')
+      if (problems.length) { el.querySelector('.m-msg').innerHTML = errorList(problems); return }
+
+      if (editing) draftRows[index] = next
+      else draftRows.push(next)
+      close()
+      commitRows(editing ? 'Task updated.' : 'Task added.')
+    }
+  }
+
+  const openImportModal = () => {
+    const { el, close } = openModal(`
+      <h3>Import tasks from CSV</h3>
+      <div class="m-msg"></div>
+      <input id="csv-file" class="sr-only" type="file" accept=".csv,text/csv" tabindex="-1" />
+      <label class="dropzone" for="csv-file" tabindex="0">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 17v-6"/><path d="m9 14 3-3 3 3"/>
+        </svg>
+        <span class="dz-title">Drop your CSV here</span>
+        <span class="dz-sub">or <u>browse files</u> · .csv in the template format</span>
+      </label>
+      <div class="file-chip" hidden>
+        <div class="fc-icon">CSV</div>
+        <div class="fc-body"><div class="fc-name"></div><div class="fc-meta"></div></div>
+        <button type="button" class="secondary small fc-change">Change</button>
+      </div>
+      <details class="csv-help">
+        <summary>Which columns does it need?</summary>
+        <div class="body">
+          <code>summary</code> <code>description</code> <code>task_type</code> <code>sub_task_type</code> <code>developer</code> <code>label</code> <code>estimated_hours</code>
+          <code>start_date</code> <code>end_date</code> <code>due_date</code>, plus optional <code>id</code>. <code>description</code> is optional too. Dates are DD-MM-YYYY.
+          ${extLink('/api/template.csv', 'Download the template')}
+        </div>
+      </details>
+      ${draftRows.length ? `
+        <div class="mode-opts">
+          <label><input type="radio" name="csv-mode" value="replace" checked><span>Replace<span class="m-sub">Swap out the ${draftRows.length} current task${draftRows.length === 1 ? '' : 's'}</span></span></label>
+          <label><input type="radio" name="csv-mode" value="append"><span>Add<span class="m-sub">Keep current tasks, append the CSV</span></span></label>
+        </div>` : ''}
+      <div class="actions">
+        <button type="button" class="secondary" data-close>Cancel</button>
+        <button type="button" id="csv-go" disabled>Import</button>
+      </div>
+    `)
+
+    const input = el.querySelector('#csv-file')
+    const zone = el.querySelector('.dropzone')
+    const chip = el.querySelector('.file-chip')
+    const goBtn = el.querySelector('#csv-go')
+    const mMsg = el.querySelector('.m-msg')
+    let file = null
+
+    const fmtSize = (n) => n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(1)} MB`
+
+    const pick = async (f) => {
+      mMsg.innerHTML = ''
+      if (!f) return
+      if (!/\.csv$/i.test(f.name) && f.type !== 'text/csv') {
+        mMsg.innerHTML = errorList([`"${f.name}" isn't a CSV file`])
+        return
+      }
+      file = f
+      // Rough row count for the chip; the server does the real parse on import
+      const lines = (await f.text()).split(/\r?\n/).filter((l) => l.trim()).length
+      const rowCount = Math.max(lines - 1, 0)
+      chip.querySelector('.fc-name').textContent = f.name
+      chip.querySelector('.fc-meta').textContent = `${fmtSize(f.size)} · ~${rowCount} row${rowCount === 1 ? '' : 's'}`
+      zone.hidden = true
+      chip.hidden = false
+      goBtn.disabled = false
+      goBtn.focus()
+    }
+
+    input.onchange = () => pick(input.files[0])
+    zone.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click() } }
+    chip.querySelector('.fc-change').onclick = () => { input.value = ''; input.click() }
+
+    for (const ev of ['dragenter', 'dragover']) zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('over') })
+    for (const ev of ['dragleave', 'drop']) zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.remove('over') })
+    zone.addEventListener('drop', (e) => pick(e.dataTransfer.files[0]))
+
+    goBtn.onclick = async () => {
+      if (!file) return
+      goBtn.disabled = true; goBtn.textContent = 'Importing...'
+      try {
+        const { rows } = await api('POST', '/api/breakdowns/parse-csv', { csv: await file.text() })
+        const mode = el.querySelector('input[name="csv-mode"]:checked')?.value ?? 'replace'
+        draftRows = mode === 'append' ? [...draftRows, ...rows] : rows
+        close()
+        const invalid = rows.filter((r) => rowIssues(r).length).length
+        commitRows(`Imported ${rows.length} task${rows.length === 1 ? '' : 's'} from ${file.name}.${invalid ? ` ${invalid} need fixing — see the red cards.` : ''}`)
+      } catch (errors) {
+        mMsg.innerHTML = errorList(Array.isArray(errors) ? errors : [String(errors)])
+        goBtn.disabled = false; goBtn.textContent = 'Import'
+      }
+    }
+  }
+
+  renderRows()
+
+  document.getElementById('bd-add').onclick = () => openTaskModal()
+  document.getElementById('bd-import').onclick = openImportModal
+
+  document.getElementById('bd-save').onclick = async () => {
+    const btn = document.getElementById('bd-save')
+    btn.disabled = true; btn.textContent = 'Saving...'
+    msg.innerHTML = ''
+    try {
+      await save()
+      showNotice('Saved.')
+    } catch (errors) {
+      showErrors(errors)
+    }
+    btn.disabled = false; btn.textContent = 'Save'
+  }
+
+  const del = document.getElementById('bd-delete')
+  if (del) del.onclick = async () => {
+    if (!confirm('Delete this breakdown? Jira issues already created are not affected.')) return
+    try {
+      await api('DELETE', `/api/breakdowns/${encodeURIComponent(breakdownId)}`)
+      location.hash = '#breakdowns'
+    } catch (errors) { showErrors(errors) }
+  }
+
+  document.getElementById('bd-create').onclick = async () => {
+    const btn = document.getElementById('bd-create')
+    msg.innerHTML = ''
+
+    const missing = missingForCreate()
+    if (missing.length) return showErrors([`Add the ${missing.join(' and ')} before creating subtasks`])
+
+    btn.disabled = true; btn.textContent = 'Checking Jira...'
+    let newId, plan
+    try {
+      newId = await save()  // create works off the saved copy, so persist edits first
+      plan = await api('POST', `/api/breakdowns/${encodeURIComponent(newId)}/preview`)
+    } catch (errors) {
+      showErrors(errors)
+    }
+    btn.textContent = 'Create subtasks in Jira'
+    refreshCreateState()
+    if (plan) openCreateModal(newId, plan)
+  }
+
+  // Confirm step: list what's already under the parent in Jira, then create only the new tasks
+  const openCreateModal = (bdId, plan) => {
+    const issueList = (items) => `<ul class="plan-list">${items.map((i) => `<li>${extLink(JIRA_BASE + i.issueKey, i.issueKey)} ${esc(i.summary)}</li>`).join('')}</ul>`
+    const n = plan.toCreate.length
+    const goLabel = n ? `Create ${n} subtask${n === 1 ? '' : 's'}` : 'Continue to workflow'
+
+    const { el, close } = openModal(`
+      <h3>Create subtasks under ${extLink(JIRA_BASE + plan.parentKey, plan.parentKey)}</h3>
+      <div class="m-msg"></div>
+      ${n ? `
+        <div class="plan-head">Will be created <span class="count">${n}</span></div>
+        <ul class="plan-list">${plan.toCreate.map((summary) => `<li>${esc(summary)}</li>`).join('')}</ul>`
+        : '<div class="notice">Every task in this breakdown already exists in Jira — nothing new will be created. Continue to see them all on the workflow.</div>'}
+      ${plan.existing.length ? `
+        <div class="plan-head">Already in Jira — left as is <span class="count">${plan.existing.length}</span></div>
+        ${issueList(plan.existing)}` : ''}
+      ${plan.otherSubtasks.length ? `
+        <div class="plan-head">Other subtasks under ${esc(plan.parentKey)} <span class="count">${plan.otherSubtasks.length}</span></div>
+        ${issueList(plan.otherSubtasks)}` : ''}
+      <div class="actions">
+        <button type="button" class="secondary" data-close>Cancel</button>
+        <button type="button" id="plan-go">${goLabel}</button>
+      </div>
+    `)
+
+    const go = el.querySelector('#plan-go')
+    go.onclick = async () => {
+      go.disabled = true; go.textContent = n ? 'Creating...' : 'Opening...'
+      try {
+        const started = await api('POST', `/api/breakdowns/${encodeURIComponent(bdId)}/create`)
+        close()
+        location.hash = `#run/${started.workflowId}`
+      } catch (errors) {
+        el.querySelector('.m-msg').innerHTML = errorList(Array.isArray(errors) ? errors : [String(errors)])
+        go.disabled = false; go.textContent = goLabel
+      }
+    }
+  }
+}
+
+// ---------- Router ----------
+
+function route() {
+  const runMatch = location.hash.match(/^#run\/(.+)$/)
+  const bdMatch = location.hash.match(/^#breakdown\/(.+)$/)
+  const view = runMatch ? 'run'
+    : bdMatch || location.hash === '#breakdowns' ? 'breakdowns'
+    : location.hash === '#settings' ? 'settings'
+    : 'home'
+
+  document.querySelectorAll('nav a').forEach((a) => {
+    a.classList.toggle('active', a.dataset.view === (view === 'run' ? 'home' : view))
+  })
+
+  if (runMatch) renderDetail(runMatch[1])
+  else if (bdMatch) renderBreakdownEditor(bdMatch[1])
+  else if (view === 'breakdowns') renderBreakdowns()
+  else if (view === 'settings') renderSettings()
+  else renderHome()
+}
+
+async function loadJiraBase() {
+  try {
+    const s = await api('GET', '/api/settings')
+    if (s.jiraBaseUrl) JIRA_BASE = `${s.jiraBaseUrl.replace(/\/+$/, '')}/browse/`
+  } catch {}
+}
+
+// ---------- Auth / boot ----------
+
+function renderLogin(errorMsg) {
+  stopPolling()
+  document.getElementById('nav').style.display = 'none'
+  document.getElementById('nav-user').innerHTML = ''
+  app.innerHTML = `
+    <div class="login-wrap">
+      <div class="card">
+        <h1>Sign in</h1>
+        <div class="sub" style="margin-bottom:16px">Use your <strong>@autochek.africa</strong> email and your Jira API token. Subtasks you create will be attributed to you in Jira.</div>
+        <div id="login-msg">${errorMsg ? errorList([errorMsg]) : ''}</div>
+        <form id="login-form" autocomplete="off">
+          <label for="login-email">Email</label>
+          <input id="login-email" type="email" autocomplete="off" placeholder="you@autochek.africa" />
+          <label for="login-token">Jira API token</label>
+          <input id="login-token" type="password" autocomplete="new-password" placeholder="Your Atlassian API token" />
+          <button type="submit" id="login-btn">Sign in</button>
+        </form>
+        <div class="sub" style="margin-top:12px;font-size:12px">
+          Create a token at ${extLink('https://id.atlassian.com/manage-profile/security/api-tokens', 'id.atlassian.com')}.
+        </div>
+      </div>
+    </div>
+  `
+
+  document.getElementById('login-form').onsubmit = async (e) => {
+    e.preventDefault()
+    const btn = document.getElementById('login-btn')
+    const msg = document.getElementById('login-msg')
+    btn.disabled = true; btn.textContent = 'Verifying with Jira...'
+    msg.innerHTML = ''
+    try {
+      await api('POST', '/api/login', {
+        email: document.getElementById('login-email').value.trim(),
+        apiToken: document.getElementById('login-token').value.trim()
+      })
+      await boot()
+    } catch (errors) {
+      msg.innerHTML = errorList(Array.isArray(errors) ? errors : [String(errors)])
+      btn.disabled = false; btn.textContent = 'Sign in'
+    }
+  }
+}
+
+async function boot() {
+  let me
+  try {
+    me = await api('GET', '/api/me')
+  } catch {
+    renderLogin()
+    return
+  }
+
+  CURRENT_USER = me.user
+  document.getElementById('nav').style.display = 'flex'
+  document.getElementById('nav-user').innerHTML = `
+    <span>${esc(me.user.displayName)}</span>
+    <button class="secondary" id="logout-btn">Log out</button>
+  `
+  document.getElementById('logout-btn').onclick = async () => {
+    try { await api('POST', '/api/logout') } catch {}
+    renderLogin()
+  }
+
+  await loadJiraBase()
+  route()
+}
+
+window.addEventListener('hashchange', () => { if (document.getElementById('nav').style.display !== 'none') route() })
+boot()
+</script>
+</body>
+</html>

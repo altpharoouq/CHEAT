@@ -1,0 +1,74 @@
+# Render Blueprint: New → Blueprint → pick this repo.
+#
+#   cheat-db        Postgres. Holds the app tables AND Temporal's own databases
+#                   (auto-setup creates "temporal" and "temporal_visibility" in it).
+#   cheat-temporal  Self-hosted Temporal server, private (only reachable inside Render).
+#   cheat-web       The UI + API (server.ts).
+#   cheat-worker    Runs the workflows/activities (worker.ts).
+#
+# Jira credentials are per user (entered at sign-in), so there are no Jira secrets here.
+
+databases:
+  - name: cheat-db
+    plan: basic-256mb        # the free plan expires after 30 days — don't use it for this
+    postgresMajorVersion: "16"
+    databaseName: subtasks
+    user: subtasks
+
+envVarGroups:
+  - name: cheat-shared
+    envVars:
+      # Encrypts each user's stored Jira token. Web and worker MUST share it.
+      # Never change it after go-live, or everyone has to sign in again.
+      - key: APP_SECRET
+        generateValue: true
+      - key: JIRA_BASE_URL
+        value: https://autochek.atlassian.net
+      - key: TEMPORAL_NAMESPACE
+        value: default
+
+services:
+  - type: pserv
+    name: cheat-temporal
+    runtime: image
+    image:
+      url: docker.io/temporalio/auto-setup:1.26.3.0   # same version as docker-compose.yml
+    plan: starter
+    envVars:
+      - key: DB
+        value: postgres12   # Temporal's driver name for Postgres 12+
+      - key: DB_PORT
+        fromDatabase: { name: cheat-db, property: port }
+      - key: POSTGRES_SEEDS
+        fromDatabase: { name: cheat-db, property: host }
+      - key: POSTGRES_USER
+        fromDatabase: { name: cheat-db, property: user }
+      - key: POSTGRES_PWD
+        fromDatabase: { name: cheat-db, property: password }
+
+  - type: web
+    name: cheat-web
+    runtime: node
+    plan: starter
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - fromGroup: cheat-shared
+      - key: DATABASE_URL
+        fromDatabase: { name: cheat-db, property: connectionString }
+      - key: TEMPORAL_HOST
+        fromService: { type: pserv, name: cheat-temporal, property: host }
+
+  - type: worker
+    name: cheat-worker
+    runtime: node
+    plan: starter
+    buildCommand: npm ci
+    startCommand: npm run start:worker:prod
+    envVars:
+      - fromGroup: cheat-shared
+      - key: DATABASE_URL
+        fromDatabase: { name: cheat-db, property: connectionString }
+      - key: TEMPORAL_HOST
+        fromService: { type: pserv, name: cheat-temporal, property: host }

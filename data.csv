@@ -1,0 +1,23 @@
+summary,task_type,sub_task_type,developer,label,estimated_hours,start_date,end_date,due_date
+Kickoff meeting with the team (process & direction),Management Task,Meeting & Communication,Faruq Alli-Balogun,Marketplace,1.5,17-07-2026,17-07-2026,17-07-2026
+Scoping,Management Task,Scoping,Faruq Alli-Balogun,Marketplace,1.5,17-07-2026,17-07-2026,17-07-2026
+Design,Management Task,Design,Faruq Alli-Balogun,Marketplace,1.5,17-07-2026,17-07-2026,17-07-2026
+Planning,Management Task,Planning,Faruq Alli-Balogun,Marketplace,1.5,17-07-2026,17-07-2026,17-07-2026
+Add Best Deals badge to vehicle cards and vehicle detail pages.,Developer Task,Frontend Development Task,Olutunde Solabi,Marketplace,2,20-07-2026,22-07-2026,24-07-2026
+Display Best Deals inspection tooltip on the vehicle detail page.,Developer Task,Frontend Development Task,Olutunde Solabi,Marketplace,2,20-07-2026,22-07-2026,24-07-2026
+Add Best Deals toggle filter to the vehicle listing page.,Developer Task,Frontend Development Task,Olutunde Solabi,Marketplace,2,20-07-2026,22-07-2026,24-07-2026
+Apply Best Deals filter to API requests and URL state.,Developer Task,Frontend Development Task,Olutunde Solabi,Marketplace,2,20-07-2026,22-07-2026,24-07-2026
+Create the /[country]/best-deals landing page.,Developer Task,Frontend Development Task,Olutunde Solabi,Marketplace,2,22-07-2026,24-07-2026,24-07-2026
+Auto-apply the Best Deals filter on the landing page.,Developer Task,Frontend Development Task,Olutunde Solabi,Marketplace,2,22-07-2026,24-07-2026,24-07-2026
+Reuse the existing listing page layout and components for Best Deals.,Developer Task,Frontend Development Task,Olutunde Solabi,Marketplace,2,22-07-2026,24-07-2026,24-07-2026
+Implement loading skeleton and empty state for Best Deals listings.,Developer Task,Frontend Development Task,Olutunde Solabi,Marketplace,2,22-07-2026,24-07-2026,24-07-2026
+Add Best Deals to the Buy Car navigation menu (web).,Developer Task,Frontend Development Task,Olutunde Solabi,Marketplace,1,23-07-2026,22-07-2026,24-07-2026
+Add Best Deals to the Buy Car menu in the mobile navigation.,Developer Task,Frontend Development Task,Olutunde Solabi,Marketplace,1,23-07-2026,22-07-2026,24-07-2026
+Integrate homepage/VLP banners linking to the Best Deals landing page.,Developer Task,Frontend Development Task,Olutunde Solabi,Marketplace,1,23-07-2026,24-07-2026,24-07-2026
+Ensure Best Deals pages and navigation work across NG KE UG and GH.,Developer Task,Frontend Development Task,Olutunde Solabi,Marketplace,1,23-07-2026,24-07-2026,24-07-2026
+Display the earliest publication date on Best Deals draft listings.,Developer Task,Frontend Development Task,Olutunde Solabi,Dealerplus,1,23-07-2026,24-07-2026,24-07-2026
+Disable the Publish button before the earliest publication date.,Developer Task,Frontend Development Task,Olutunde Solabi,Dealerplus,1,23-07-2026,24-07-2026,24-07-2026
+Re-enable the Publish button once the publication date is reached.,Developer Task,Frontend Development Task,Olutunde Solabi,Dealerplus,1,23-07-2026,24-07-2026,24-07-2026
+"Show a tooltip explaining why Publish is disabled, including the publication date.",Developer Task,Frontend Development Task,Olutunde Solabi,Dealerplus,1,23-07-2026,24-07-2026,24-07-2026
+Add Move to Marketplace button on Console an to push a car for repo and add modal to Show details for user to confirm before moving,Developer Task,Frontend Development Task,Olutunde Solabi,Console,2,13-07-2026,14-07-2026,17-07-2026
+Handle publish API validation errors for blocked publication attempts.,Developer Task,Frontend Development Task,Olutunde Solabi,Dealerplus,2,22-07-2026,24-07-2026,24-07-2026

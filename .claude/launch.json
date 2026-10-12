@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "subtask-ui",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["ts-node", "-T", "server.ts"],
+      "port": 3456,
+      "autoPort": true
+    }
+  ]
+}
