@@ -3,7 +3,7 @@ import * as crypto from 'node:crypto'
 import * as fs from 'node:fs'
 
 import { buildRowsFromRecords, parseCsvRecords, SEED_LOOKUPS } from './rows'
-import { TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE } from './temporal'
+import { TEMPORAL_NAMESPACE, temporalConnectionOptions } from './temporal'
 import { processSubtask } from './workflows'
 
 const TEMPORAL_TASK_QUEUE_NAME = 'subtask-processing'
@@ -28,7 +28,7 @@ const run = async () => {
   }
 
   const client = new Client({
-    connection: await Connection.connect({ address: TEMPORAL_ADDRESS }),
+    connection: await Connection.connect(temporalConnectionOptions),
     namespace: TEMPORAL_NAMESPACE
   })
 

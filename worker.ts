@@ -1,12 +1,12 @@
 import { NativeConnection, Worker } from '@temporalio/worker'
 
 import * as activities from './activities'
-import { TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE } from './temporal'
+import { TEMPORAL_NAMESPACE, temporalConnectionOptions } from './temporal'
 
 const TEMPORAL_TASK_QUEUE_NAME = 'subtask-processing'
 
 const run = async () => {
-  const connection = await NativeConnection.connect({ address: TEMPORAL_ADDRESS })
+  const connection = await NativeConnection.connect(temporalConnectionOptions)
 
   await(await Worker.create({
     activities, connection,

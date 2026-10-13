@@ -12,7 +12,8 @@
     "start:server": "nodemon --ext ts,json --ignore client.ts --ignore worker.ts --ignore public --exec \"ts-node -T server.ts\"",
     "typecheck": "tsc --noEmit",
     "start": "ts-node -T server.ts",
-    "start:worker:prod": "ts-node -T worker.ts"
+    "start:worker:prod": "ts-node -T worker.ts",
+    "start:all": "ts-node -T all.ts"
   },
   "dependencies": {
     "@temporalio/activity": "^1.13.0",

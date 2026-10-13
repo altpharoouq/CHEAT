@@ -10,7 +10,7 @@ import {
 } from './activities'
 import * as db from './db'
 import { buildRowsFromRecords, parseCsvRecords } from './rows'
-import { TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE } from './temporal'
+import { TEMPORAL_NAMESPACE, temporalConnectionOptions } from './temporal'
 import { processSheet, progressQuery } from './workflows'
 
 import type { Lookups } from './rows'
@@ -120,10 +120,12 @@ const errorResponse = (res: express.Response, err: unknown) => {
 const run = async () => {
   await db.initDb()
 
-  const connection = await Connection.connect({ address: TEMPORAL_ADDRESS })
+  const connection = await Connection.connect(temporalConnectionOptions)
   const client = new Client({ connection, namespace: TEMPORAL_NAMESPACE })
 
   const app = express()
+  // Behind Caddy in production: trust its X-Forwarded-Proto so req.secure reflects HTTPS
+  if (process.env.TRUST_PROXY === 'true') app.set('trust proxy', 1)
   app.use(express.json())
   app.use(express.static(path.join(__dirname, 'public')))
 
@@ -173,7 +175,7 @@ const run = async () => {
 
       await db.upsertUser(email, String(resp.data?.displayName ?? email), String(resp.data?.accountId ?? ''), apiToken)
       const token = await db.createSession(email)
-      res.cookie(SESSION_COOKIE, token, { httpOnly: true, sameSite: 'lax', maxAge: 14 * 24 * 3600 * 1000 })
+      res.cookie(SESSION_COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: req.secure, maxAge: 14 * 24 * 3600 * 1000 })
       res.json({ user: { email, displayName: resp.data?.displayName ?? email, accountId: resp.data?.accountId ?? '' } })
     } catch (err) {
       errorResponse(res, err)
